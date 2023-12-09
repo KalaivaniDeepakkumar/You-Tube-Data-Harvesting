@@ -8,6 +8,7 @@ import mysql.connector
 from mysql.connector import Error
 from datetime import datetime, timedelta
 from datetime import datetime
+import plotly.express as px
 from PIL import Image
 # YouTube API key
 api='AIzaSyD64sl0n4KHDp0ZFQlqP3ToLzqD8TXuwCs'
@@ -185,7 +186,7 @@ def create_tables():
     mydb.commit()
     
     try:
-        mycursor.execute('''CREATE TABLE channeldetails (Channel_id VARCHAR(255),
+        mycursor.execute('''CREATE TABLE channeldetails (Channel_id VARCHAR(255) primary key,
                                                   channel_name VARCHAR(255), 
                                                   playlist_id VARCHAR(255), 
                                                   subscribers VARCHAR(255),
@@ -196,7 +197,7 @@ def create_tables():
    
         mycursor.execute('''CREATE TABLE videodetails(Channel_name VARCHAR(255),
                                               Channel_id VARCHAR(255),
-                                              Video_id VARCHAR(255),
+                                              Video_id VARCHAR(255) primary key,
                                               Title VARCHAR(255),
                                               Tags text,
                                               Thumbnail VARCHAR(255),
@@ -220,7 +221,7 @@ def create_tables():
          print("Channels Table alredy created")
 
 #insert into table values
- #doc=my_collection.find_one({'channel details.channel_name':"HaKi's World"},{'_id':0})  
+   
 def store_in_tables(A):
     sql='''INSERT INTO channeldetails (Channel_id, 
                                    channel_name,
@@ -231,7 +232,11 @@ def store_in_tables(A):
                                     description, 
                                     country) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)'''
     value=tuple(A['channel details'][0].values())
-    mycursor.execute(sql,value)
+    try:
+            mycursor.execute(sql,value)                     
+            mydb.commit()    
+    except:
+            st.write("Channels values are already inserted")
 
     sql='''INSERT INTO videodetails(Channel_name, 
                                Channel_id, 
@@ -297,15 +302,14 @@ if selected == "Data Transformation":
     st.markdown("#   ")
     st.write("## :red[Data Migration from MongoDB to SQL]")
     st.markdown("#    ")
-    import_to_sql=st.button("### :green[Migrate to SQL]")
-    st.write("Click the button to migrate data")
-
     ch_names = []
     
     for i in my_collection.find():
         ch_names.append(i['channel details'][0]['channel_name'])
         
     c_names=st.selectbox('select the channel',options=ch_names)
+    import_to_sql=st.button("### :green[Migrate to SQL]")
+    st.write("Click the button to migrate data")
 
 
     if import_to_sql:
@@ -341,6 +345,14 @@ if selected == "Queries":
         mycursor.execute("""select channel_name ,views, Title from videodetails order by views desc limit 10""")
         df = pd.DataFrame(mycursor.fetchall(),columns=mycursor.column_names)
         st.write(df)
+        st.write("### :green[Top 10 most viewed videos :]")
+        fig = px.bar(df,
+                     x=mycursor.column_names[2],
+                     y=mycursor.column_names[1],
+                     orientation='v',
+                     color=mycursor.column_names[0]
+                    )
+        st.plotly_chart(fig,use_container_width=True)
         
         
     elif Questions == '4. How many comments were made on each video, and what are their corresponding video names?':
@@ -355,6 +367,14 @@ if selected == "Queries":
                         from videodetails order by likes  desc limit 10;""")
         df = pd.DataFrame(mycursor.fetchall(),columns=mycursor.column_names)
         st.write(df)
+        st.write("### :green[Top 10 most liked videos :]")
+        fig = px.bar(df,
+                     x=mycursor.column_names[2],
+                     y=mycursor.column_names[1],
+                     orientation='v',
+                     color=mycursor.column_names[0]
+                    )
+        st.plotly_chart(fig,use_container_width=True)
         
     elif Questions == '6. What is the total number of likes and dislikes for each video, and what are their corresponding video names?':
         mycursor.execute("""select likes as likecount ,title as videonames from videodetails limit 10;""")
@@ -365,11 +385,20 @@ if selected == "Queries":
         df = pd.DataFrame(mycursor.fetchall(),columns=mycursor.column_names)
         st.write(df)
         st.write("### [Channels vs Views :]")
+        fig = px.bar(df,
+                     x=mycursor.column_names[0],
+                     y=mycursor.column_names[1],
+                     orientation='v',
+                     color=mycursor.column_names[0]
+                    )
+        st.plotly_chart(fig,use_container_width=True)
+        
     elif Questions == '8. What are the names of all the channels that have published videos in the year 2022?':
         mycursor.execute("""SELECT channel_name AS Channel_Name  FROM videodetails  WHERE published_date LIKE '2022%' 
                             GROUP BY channel_name ORDER BY channel_name;""")
         df = pd.DataFrame(mycursor.fetchall(),columns=mycursor.column_names)
         st.write(df)
+            
     elif Questions == '9. What is the average duration of all videos in each channel, and what are their corresponding channel names?':
         mycursor.execute("""select a.channel_name AS Channel_name,TIME_FORMAT(sec_to_time(avg(time_to_sec(Duration))),'%H:%i:%s') AS Average_Video_Duration_hrs 
                             from videodetails as a inner join 
@@ -378,11 +407,27 @@ if selected == "Queries":
                             
         st.write(df)
         st.write("### [Average video duration for channels :]")
+        fig = px.bar(df,
+                     x=mycursor.column_names[0],
+                     y=mycursor.column_names[1],
+                     orientation='v',
+                     color=mycursor.column_names[0]
+                    )
+        st.plotly_chart(fig,use_container_width=True)
+            
     elif Questions == '10. Which videos have the highest number of comments, and what are their corresponding channel names?':
             mycursor.execute("""select channel_name AS channel_name,video_id AS Video_ID,comments AS comments
                                     FROM videodetails ORDER BY comments DESC LIMIT 10;""")
             df = pd.DataFrame(mycursor.fetchall(),columns=mycursor.column_names)
             st.write(df)
+            st.write("### :green[Videos with most comments :]")
+            fig = px.bar(df,
+                     x=mycursor.column_names[1],
+                     y=mycursor.column_names[2],
+                     orientation='v',
+                     color=mycursor.column_names[0]
+                    )
+            st.plotly_chart(fig,use_container_width=True)
             
 
 
